@@ -1,0 +1,248 @@
+service: search-consolidation
+# app and org for use with dashboard.serverless.com
+#app: your-app-name
+#org: your-org-name
+
+frameworkVersion: '1'
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  logs:
+    websocket: true
+
+  region: us-east-1
+  stage: dev
+
+# you can add statements to the Lambda function's IAM Role here
+  iamRoleStatements:
+    - Effect: "Allow"
+      Action:
+        - "states:*"
+      Resource: ["*"]
+
+    - Effect: "Allow"
+      Action:
+        - "execute-api:Invoke"
+        - "execute-api:ManageConnections"
+      Resource: ["arn:aws:execute-api:*:*:*"]
+
+    - Effect: Allow
+      Action:
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+#        - dynamodb:PutItem
+#        - dynamodb:UpdateItem
+#        - dynamodb:DeleteItem
+      Resource: ["*"]
+
+plugins:
+  - serverless-step-functions
+  - serverless-pseudo-parameters
+  - serverless-dynamodb-seed
+
+functions:
+  ws-cli-response:
+    handler: ws-cli-response/handler.handler
+
+  sm-starter:
+    handler: sm-starter/handler.handler
+    environment:
+      statemachine_arn: "arn:aws:states:#{AWS::Region}:#{AWS::AccountId}:stateMachine:cSearchSteteMachine"
+    events:
+      - http:
+          path: csearch
+          method: post
+          private: false
+          cors: true
+
+  ws-echo:
+    handler: ws-echo/handler.handler
+    events:
+      - websocket:
+          route: getconnid
+          routeResponseSelectionExpression: $default
+
+  dynamo-query-a:
+    handler: dynamo-query/handler.handler
+    environment:
+      DDB_TABLE: "MSDB_CONTENT_A"
+
+  dynamo-query-b:
+    handler: dynamo-query/handler.handler
+    environment:
+      DDB_TABLE: "MSDB_CONTENT_B"
+
+  dynamo-query-c:
+    handler: dynamo-query/handler.handler
+    environment:
+      DDB_TABLE: "MSDB_CONTENT_C"
+  
+  search-consolidation:
+    handler: search-consolidation/handler.handler
+
+stepFunctions:
+  stateMachines:
+    cSearchSteteMachine:
+      name: cSearchSteteMachine
+      definition:
+        Comment: Consolidates search state machine
+        StartAt: InitialState
+        States:
+          InitialState:
+            Type: Pass
+            Next: ParallelQueries
+          ParallelQueries:
+            Comment: Run searches in parallel
+            Type: Parallel
+            ResultPath: "$.search"
+            Next: Consolidate Results
+            Branches:
+            - StartAt: QueryContentA
+              States:
+                QueryContentA:
+                  Type: Task
+                  Resource: arn:aws:lambda:#{AWS::Region}:#{AWS::AccountId}:function:${self:service}-${self:custom.stage}-dynamo-query-a
+                  InputPath: "$.query"
+                  Next: Convert A String to JSON
+                Convert A String to JSON:
+                  Type: Pass
+                  Parameters:
+                    0.$: States.StringToJson($.body)
+                  End: true
+            - StartAt: QueryContentB
+              States:
+                QueryContentB:
+                  Type: Task
+                  Resource: arn:aws:lambda:#{AWS::Region}:#{AWS::AccountId}:function:${self:service}-${self:custom.stage}-dynamo-query-b
+                  InputPath: "$.query"
+                  Next: Convert B String to JSON
+                Convert B String to JSON:
+                  Type: Pass
+                  Parameters:
+                    1.$: States.StringToJson($.body)
+                  End: true
+            - StartAt: QueryContentC
+              States:
+                QueryContentC:
+                  Type: Task
+                  Resource: arn:aws:lambda:#{AWS::Region}:#{AWS::AccountId}:function:${self:service}-${self:custom.stage}-dynamo-query-c
+                  InputPath: "$.query"
+                  Next: Convert C String to JSON
+                Convert C String to JSON:
+                  Type: Pass
+                  Parameters:
+                    2.$: States.StringToJson($.body)
+                  End: true
+          Consolidate Results:
+            Type: Task
+            Resource: arn:aws:lambda:#{AWS::Region}:#{AWS::AccountId}:function:${self:service}-${self:custom.stage}-search-consolidation
+            ResultPath: "$.consolidated"
+            InputPath: "$.search"
+            Next: Invoke WS Callback
+          Invoke WS Callback:
+            Type: Task
+            Resource: arn:aws:lambda:#{AWS::Region}:#{AWS::AccountId}:function:${self:service}-${self:custom.stage}-ws-cli-response
+            Parameters:
+              requestContext:
+                domainName.$: "$.requestContext.domainName"
+                stage.$: "$.requestContext.stage"
+                connectionId.$: "$.requestContext.connectionId"
+              body.$: "$.consolidated"
+            End: true
+
+resources:      
+  Resources:
+    contentA:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: MSDB_CONTENT_A
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+          - AttributeName: title
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: titleIndex
+            KeySchema:
+              - AttributeName: title
+                KeyType: HASH
+            Projection:
+              ProjectionType: 'ALL'
+            ProvisionedThroughput:
+              ReadCapacityUnits: 5
+              WriteCapacityUnits: 5
+        ProvisionedThroughput:
+          ReadCapacityUnits: 5
+          WriteCapacityUnits: 5
+
+    contentB:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: MSDB_CONTENT_B
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+          - AttributeName: title
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: titleIndex
+            KeySchema:
+              - AttributeName: title
+                KeyType: HASH
+            Projection:
+              ProjectionType: 'ALL'
+            ProvisionedThroughput:
+              ReadCapacityUnits: 5
+              WriteCapacityUnits: 5
+        ProvisionedThroughput:
+          ReadCapacityUnits: 5
+          WriteCapacityUnits: 5
+
+    contentC:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: MSDB_CONTENT_C
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+          - AttributeName: title
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: titleIndex
+            KeySchema:
+              - AttributeName: title
+                KeyType: HASH
+            Projection:
+              ProjectionType: 'ALL'
+            ProvisionedThroughput:
+              ReadCapacityUnits: 5
+              WriteCapacityUnits: 5
+        ProvisionedThroughput:
+          ReadCapacityUnits: 5
+          WriteCapacityUnits: 5
+custom:  
+  stage: ${opt:stage, self:provider.stage}
+  seed:
+    content-a-seed:
+      table: MSDB_CONTENT_A
+      sources:
+        - seed/content-a.json
+    content-b-seed:
+      table: MSDB_CONTENT_B
+      sources:
+        - seed/content-b.json
+    content-c-seed:
+      table: MSDB_CONTENT_C
+      sources:
+        - seed/content-c.json
