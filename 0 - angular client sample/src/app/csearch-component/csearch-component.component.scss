@@ -1,0 +1,100 @@
+.main {
+    padding:5%;
+}
+.mat-list-icon {
+    color: rgba(0, 0, 0, 0.54);
+}
+.mat-list-item {
+    color: rgba(0, 0, 0, 0.54);
+}
+
+.date {
+    font-size: 8px;
+}
+
+.description {
+    font-size: 12px;
+    word-break: break-all;
+    width: max-content;
+}
+
+.title {
+    font-size: 16px;
+    color: purple;
+}
+
+.type {
+    font-size: 9px;
+    color:black;
+}
+
+.mat-card {
+    background: #fff;
+   /* color: #fff;*/
+}
+
+.card-list {
+    padding:7px;
+    width: 100%;
+}
+
+
+.card {
+    margin-left:10%;
+    margin-right: 10%;;
+    max-width: 80%;
+    color:grey;
+}
+
+.outline {
+    border-style: solid;
+    border-width: thin;
+}
+
+.search-field {
+    outline: gray;
+    width:60%;
+    margin-right:5%;
+}
+
+::ng-deep {
+    .mat-form-field .mat-form-field-flex{
+      background-color: rgb(221, 221, 221); 
+      border-radius: 1%;
+    }
+  }
+
+  .mat-divider {
+    border-top-color: rgba(0, 0, 0, 0.12);
+}
+
+.search-content {
+    width:80%;
+    margin-right:12%;
+    margin-left:12%;
+}
+
+.example-button-row {
+    display: table-cell;
+    width: 100%;
+}
+
+.example-button-row .mat-button-base {
+    margin: 8px 8px 8px 0;
+}
+
+.center {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    -moz-transform: translateX(-50%) translateY(-50%);
+    -webkit-transform: translateX(-50%) translateY(-50%);
+    transform: translateX(-50%) translateY(-50%);
+}
+
+.empty-state {
+    width: 100%;
+    text-align: center;
+    margin-top:10%;
+}
+

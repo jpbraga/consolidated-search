@@ -1,0 +1,43 @@
+<div class="main">
+    <div class="search-content">
+        <p class="search-components-content">
+            <mat-form-field appearance="fill" class="search-field">
+                <mat-label>Search by title</mat-label>
+                <input matInput [(ngModel)]="data.title" placeholder="i.e.: alpha">
+            </mat-form-field>
+            <button mat-raised-button color="primary" disabled="{{isSearching}}"
+                (click)="search()">{{data.title.length === 0 ? 'Fetch all' : 'Search for title'}}</button>
+        </p>
+    </div>
+
+    <mat-divider color="primary"></mat-divider>
+    <div class="search-content">
+        <p class="type" *ngIf="!showSpinner && timeStamp !== 0">Searched in {{timeStamp}} seconds</p>
+    </div>
+
+    <div class="center" *ngIf="showSpinner && isSearching">
+        <mat-spinner></mat-spinner>
+    </div>
+
+    <mat-list *ngIf="!showSpinner">
+        <ng-container *ngIf="submitted && !isSearching && records.length === 0">
+            <p class="empty-state">Title(s) not found</p>
+        </ng-container>
+
+        <div *ngFor="let record of records" class="card-list">
+            <mat-card class="card outline">
+                <mat-card-header>
+                    <mat-icon mat-card-avatar>http</mat-icon>
+                    <mat-card-title class="title">{{record.title}}</mat-card-title>
+                    <mat-card-subtitle class="type">{{record.type}} > {{record.updated | date}}</mat-card-subtitle>
+                </mat-card-header>
+                <mat-card-content>
+                    <p>
+                        {{record.description}}
+                    </p>
+                </mat-card-content>
+            </mat-card>
+        </div>
+    </mat-list>
+
+</div>
