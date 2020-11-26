@@ -25,6 +25,8 @@ The State Machine fires up a request for microservices in parallel. For each mic
 # OBS:
 To make it more resilient, in a production-level State Machine, I strongly advise taking into account develop the error handling steps for a service like that and use the WebSocket notification structure to notify the client if something wrong happens to the request.
 
+This example takes a big hit, performance wise, do to **lambda cold start**. It makes a **2 seconds** execution takes almost **7 seconds**.
+
 I also advise implementing a timeout to the WebSocket wait time on the client-side.
 
 # Angular client project
